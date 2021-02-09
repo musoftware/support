@@ -4,8 +4,6 @@ namespace PragmaRX\Support\GeoIp;
 
 class Updater
 {
-    const GEOLITE2_URL_BASE = 'http://geolite.maxmind.com/download/geoip/database/GeoLite2-City';
-
     protected $databaseFileGzipped;
 
     protected $databaseFile;
@@ -26,11 +24,11 @@ class Updater
 
     protected function databaseIsUpdated($geoDbFileUrl, $geoDbMd5Url, $destinationPath)
     {
-        $destinationGeoDbFile = $this->removeGzipExtension($destinationPath . DIRECTORY_SEPARATOR . $this->getDbFileName());
+        $destinationGeoDbFile = ($destinationPath . DIRECTORY_SEPARATOR . $this->getDbFileName());
 
         $this->md5File = $this->getHTTPFile($geoDbMd5Url, $destinationPath . DIRECTORY_SEPARATOR, $this->getMd5FileName());
 
-        if (! file_exists($destinationGeoDbFile)) {
+        if (!file_exists($destinationGeoDbFile)) {
             return false;
         }
 
@@ -50,9 +48,11 @@ class Updater
      */
     protected function downloadGzipped($destinationPath, $geoDbUrl)
     {
-        if (! $this->databaseFileGzipped = $this->getHTTPFile($geoDbUrl, 
-        ($destination = $destinationPath . DIRECTORY_SEPARATOR),
-            $this->getDbFileName())) {
+        if (!$this->databaseFileGzipped = $this->getHTTPFile(
+            $geoDbUrl,
+            ($destination = $destinationPath . DIRECTORY_SEPARATOR),
+            $this->getDbFileName()
+        )) {
             $this->addMessage("Unable to download file {$geoDbUrl} to {$destination}.");
         }
 
@@ -97,9 +97,9 @@ class Updater
      *
      * @return bool
      */
-    private function md5Match() 
+    private function md5Match()
     {
-        if (! $match = md5_file($this->databaseFile) == file_get_contents($this->md5File)) {
+        if (!$match = md5_file($this->databaseFile) == file_get_contents($this->md5File)) {
             $this->addMessage("MD5 is not matching for {$this->databaseFile} and {$this->md5File}.");
 
             return false;
@@ -129,9 +129,10 @@ class Updater
      * @param null $geoDbMd5Url
      * @return bool
      */
-    public function updateGeoIpFiles($destinationPath, $geoDbUrl = null, $geoDbMd5Url = null)
+    public function updateGeoIpFiles($destinationPath, $geoDbUrl, $geoDbMd5Url)
     {
-        if ($this->databaseIsUpdated($geoDbUrl = $this->getDbFileName($geoDbUrl), $this->getMd5FileName($geoDbMd5Url), $destinationPath)) {
+        $geoDbMd5Url = str_replace('.sha256', '.md5', $geoDbMd5Url);
+        if ($this->databaseIsUpdated($this->getDbFileName(), $geoDbMd5Url, $destinationPath)) {
             return true;
         }
 
@@ -155,22 +156,28 @@ class Updater
     {
         set_time_limit(360);
 
-        if (! $this->makeDir($destinationPath)) {
+        if (!$this->makeDir($destinationPath)) {
             return false;
         }
 
         $fileWriteName = $destinationPath . $filename;
 
-        if (($fileRead = @fopen($uri,"rb")) === false || ($fileWrite = @fopen($fileWriteName, 'wb')) === false) {
-            $this->addMessage("Unable to open {$uri} (read) or {$fileWriteName} (write).");
+
+        if (($fileRead = @fopen($uri, "rb")) === false) {
+            $this->addMessage("Unable to open {$uri} (read).");
 
             return false;
         }
 
-        while(! feof($fileRead))
-        {
-            $content = @fread($fileRead, 1024*16);
+        if (($fileWrite = @fopen($fileWriteName, 'wb')) === false) {
+            $this->addMessage("Unable to open {$fileWriteName} (write).");
 
+            return false;
+        }
+
+
+        while (!feof($fileRead)) {
+            $content = @fread($fileRead, 1024 * 16);
             $success = fwrite($fileWrite, $content);
 
             if ($success === false) {
@@ -209,7 +216,7 @@ class Updater
             return false;
         }
 
-        while(!gzeof($fileRead)) {
+        while (!gzeof($fileRead)) {
             $success = fwrite($fileWrite, gzread($fileRead, $buffer_size));
 
             if ($success === false) {
