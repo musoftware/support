@@ -26,9 +26,9 @@ class Updater
 
     protected function databaseIsUpdated($geoDbFileUrl, $geoDbMd5Url, $destinationPath)
     {
-        $destinationGeoDbFile = $this->removeGzipExtension($destinationPath . DIRECTORY_SEPARATOR . basename($geoDbFileUrl));
+        $destinationGeoDbFile = $this->removeGzipExtension($destinationPath . DIRECTORY_SEPARATOR . $this->getDbFileName());
 
-        $this->md5File = $this->getHTTPFile($geoDbMd5Url, $destinationPath . DIRECTORY_SEPARATOR);
+        $this->md5File = $this->getHTTPFile($geoDbMd5Url, $destinationPath . DIRECTORY_SEPARATOR, $this->getMd5FileName());
 
         if (! file_exists($destinationGeoDbFile)) {
             return false;
@@ -50,23 +50,25 @@ class Updater
      */
     protected function downloadGzipped($destinationPath, $geoDbUrl)
     {
-        if (! $this->databaseFileGzipped = $this->getHTTPFile($geoDbUrl, ($destination = $destinationPath . DIRECTORY_SEPARATOR))) {
+        if (! $this->databaseFileGzipped = $this->getHTTPFile($geoDbUrl, 
+        ($destination = $destinationPath . DIRECTORY_SEPARATOR),
+            $this->getDbFileName())) {
             $this->addMessage("Unable to download file {$geoDbUrl} to {$destination}.");
         }
 
-        $this->databaseFile = $this->dezipGzFile($destinationPath . DIRECTORY_SEPARATOR . basename($geoDbUrl));
+        $this->databaseFile = $this->dezipGzFile($destinationPath . DIRECTORY_SEPARATOR . $this->getDbFileName());
 
         return $this->md5Match();
     }
 
-    private function getDbFileName($geoDbUrl)
+    private function getDbFileName()
     {
-        return $geoDbUrl ?: static::GEOLITE2_URL_BASE . '.mmdb.gz';
+        return 'GeoLite2-City.mmdb.gz';
     }
 
-    private function getMd5FileName($geoDbMd5Url)
+    private function getMd5FileName()
     {
-        return $geoDbMd5Url ?: static::GEOLITE2_URL_BASE . '.md5';
+        return 'GeoLite2-City.md5';
     }
 
     /**
@@ -95,7 +97,7 @@ class Updater
      *
      * @return bool
      */
-    private function md5Match()
+    private function md5Match() 
     {
         if (! $match = md5_file($this->databaseFile) == file_get_contents($this->md5File)) {
             $this->addMessage("MD5 is not matching for {$this->databaseFile} and {$this->md5File}.");
@@ -149,7 +151,7 @@ class Updater
      * @param $destinationPath
      * @return bool|string
      */
-    protected function getHTTPFile($uri, $destinationPath)
+    protected function getHTTPFile($uri, $destinationPath, $filename)
     {
         set_time_limit(360);
 
@@ -157,7 +159,7 @@ class Updater
             return false;
         }
 
-        $fileWriteName = $destinationPath . basename($uri);
+        $fileWriteName = $destinationPath . $filename;
 
         if (($fileRead = @fopen($uri,"rb")) === false || ($fileWrite = @fopen($fileWriteName, 'wb')) === false) {
             $this->addMessage("Unable to open {$uri} (read) or {$fileWriteName} (write).");

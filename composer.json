@@ -1,9 +1,9 @@
 {
-    "name": "pragmarx/support",
+    "name": "musoftware/support",
 
     "description": "PragmaRX components support package",
 
-    "keywords": ["pragmarx","laravel"],
+    "keywords": ["pragmarx","laravel", "musoftware"],
 
     "license": "BSD-3-Clause",
 
@@ -12,6 +12,11 @@
             "name": "Antonio Carlos Ribeiro",
             "email": "acr@antoniocarlosribeiro.com",
             "role": "Creator"
+        },
+        {
+            "name": "Mahmoud Mu",
+            "email": "mahmoudmn810@gmail.com",
+            "role": "Editor"
         }
     ],
 
