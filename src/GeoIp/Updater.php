@@ -56,6 +56,7 @@ class Updater
             $this->addMessage("Unable to download file {$geoDbUrl} to {$destination}.");
         }
 
+
         $this->databaseFile = $this->dezipGzFile($destinationPath . DIRECTORY_SEPARATOR . $this->getDbFileName());
 
         return $this->md5Match();
@@ -63,7 +64,7 @@ class Updater
 
     private function getDbFileName()
     {
-        return 'GeoLite2-City.mmdb.gz';
+        return 'GeoLite2-City.mmdb.tar.gz';
     }
 
     private function getMd5FileName()
@@ -99,7 +100,8 @@ class Updater
      */
     private function md5Match()
     {
-        if (!$match = md5_file($this->databaseFile) == file_get_contents($this->md5File)) {
+
+        if (!$match = md5_file($this->databaseFileGzipped) == file_get_contents($this->md5File)) {
             $this->addMessage("MD5 is not matching for {$this->databaseFile} and {$this->md5File}.");
 
             return false;
@@ -118,7 +120,10 @@ class Updater
      */
     protected function removeGzipExtension($filePath)
     {
-        return str_replace('.gz', '', $filePath);
+        $file = $filePath;
+        $file = str_replace('.gz', '', $file);
+        $file = str_replace('.tar', '', $file);
+        return $file;
     }
 
     /**
@@ -135,7 +140,6 @@ class Updater
         if ($this->databaseIsUpdated($this->getDbFileName(), $geoDbMd5Url, $destinationPath)) {
             return true;
         }
-
         if ($this->downloadGzipped($destinationPath, $geoDbUrl)) {
             return true;
         }
@@ -194,6 +198,15 @@ class Updater
         return $fileWriteName;
     }
 
+    protected function glob_recursive($pattern, $flags = 0)
+    {
+        $files = glob($pattern, $flags);
+        foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
+            $files = array_merge($files, $this->glob_recursive($dir . '/' . basename($pattern), $flags));
+        }
+        return $files;
+    }
+
     /**
      * Extract gzip file.
      *
@@ -202,34 +215,50 @@ class Updater
      */
     protected function dezipGzFile($filePath)
     {
+        ini_set('memory_limit', '256M');
+
         $buffer_size = 8192; // read 8kb at a time
 
         $out_file_name = $this->removeGzipExtension($filePath);
 
-        $fileRead = gzopen($filePath, 'rb');
+        try {
+            $phar = new \PharData($filePath);
+            $phar->extractTo(dirname($out_file_name), null, true); // extract all files
 
-        $fileWrite = fopen($out_file_name, 'wb');
-
-        if ($fileRead === false || $fileWrite === false) {
-            $this->addMessage("Unable to extract gzip file {$filePath} to {$out_file_name}.");
-
-            return false;
-        }
-
-        while (!gzeof($fileRead)) {
-            $success = fwrite($fileWrite, gzread($fileRead, $buffer_size));
-
-            if ($success === false) {
-                $this->addMessage("Error degzipping file {$filePath} to {$out_file_name}.");
-
-                return false;
+            if (file_exists($out_file_name)) {
+                unlink($out_file_name);
             }
+            foreach ($this->glob_recursive(dirname($out_file_name) . '/*.mmdb') as $item) {
+                rename($item, $out_file_name);
+            }
+        } catch (Exception $e) {
+            // handle errors
         }
 
-        // Files are done, close files
-        fclose($fileWrite);
-
-        gzclose($fileRead);
+        //        $fileRead = gzopen($filePath, 'rb');
+        //
+        //        $fileWrite = fopen($out_file_name, 'wb');
+        //
+        //        if ($fileRead === false || $fileWrite === false) {
+        //            $this->addMessage("Unable to extract gzip file {$filePath} to {$out_file_name}.");
+        //
+        //            return false;
+        //        }
+        //
+        //        while (!gzeof($fileRead)) {
+        //            $success = fwrite($fileWrite, gzread($fileRead, $buffer_size));
+        //
+        //            if ($success === false) {
+        //                $this->addMessage("Error degzipping file {$filePath} to {$out_file_name}.");
+        //
+        //                return false;
+        //            }
+        //        }
+        //
+        //        // Files are done, close files
+        //        fclose($fileWrite);
+        //
+        //        gzclose($fileRead);
 
         return $out_file_name;
     }
